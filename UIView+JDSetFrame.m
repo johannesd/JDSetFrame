@@ -38,9 +38,28 @@ CGRect JDSetFrameToWidthHeight(CGRect frame, CGFloat width, CGFloat height)
     return CGRectMake(frame.origin.x, frame.origin.y, width, height);
 }
 
+CGRect JDSetFrameToSize(CGRect frame, CGSize size)
+{
+    return JDSetFrameToWidthHeight(frame, size.width, size.height);
+}
+
 CGRect JDSetFrameToRightOfView(CGRect frame, UIView *view, CGFloat margin)
 {
+    if (view == nil) {
+        return CGRectMake(0, 0, frame.size.width, frame.size.height);
+    }
     return CGRectMake(view.frame.origin.x + view.frame.size.width + margin,
+                      view.frame.origin.y,
+                      frame.size.width,
+                      frame.size.height);
+}
+
+CGRect JDSetFrameToLeftOfView(CGRect frame, UIView *view, CGFloat margin)
+{
+    if (view == nil) {
+        return CGRectMake(0, 0, frame.size.width, frame.size.height);
+    }
+    return CGRectMake(view.frame.origin.x - frame.size.width - margin,
                       view.frame.origin.y,
                       frame.size.width,
                       frame.size.height);
@@ -48,6 +67,9 @@ CGRect JDSetFrameToRightOfView(CGRect frame, UIView *view, CGFloat margin)
 
 CGRect JDSetFrameToBottomOfView(CGRect frame, UIView *view, CGFloat margin)
 {
+    if (view == nil) {
+        return CGRectMake(0, 0, frame.size.width, frame.size.height);
+    }
     return CGRectMake(view.frame.origin.x,
                       view.frame.origin.y + view.frame.size.height + margin,
                       frame.size.width,
@@ -56,6 +78,9 @@ CGRect JDSetFrameToBottomOfView(CGRect frame, UIView *view, CGFloat margin)
 
 CGRect JDSetFrameToTopOfView(CGRect frame, UIView *view, CGFloat margin)
 {
+    if (view == nil) {
+        return CGRectMake(0, 0, frame.size.width, frame.size.height);
+    }
     return CGRectMake(view.frame.origin.x,
                       view.frame.origin.y - frame.size.height - margin,
                       frame.size.width,
@@ -97,6 +122,23 @@ CGRect JDSetFrameToAlignment(CGRect frame, UIView *superview, JDFrameAlignment a
     return frame;
 }
 
+CGRect JDSetFrameToAlignmentBetweenViews(CGRect frame, UIView *view1, UIView *view2, JDFrameAlignment alignment)
+{
+    if ((alignment & JDFrameAlignmentCenter) != 0) {
+        frame = CGRectMake(MAX(0, floor(view1.frameRight + (view2.frameLeft - view1.frameRight - frame.size.width) / 2)),
+                           frame.origin.y,
+                           frame.size.width,
+                           frame.size.height);
+    }
+    if ((alignment & JDFrameAlignmentMiddle) != 0) {
+        frame = CGRectMake(frame.origin.x,
+                           MAX(0, floor(view1.frameBottom + (view2.frameTop - view1.frameBottom - frame.size.height) / 2)),
+                           frame.size.width,
+                           frame.size.height);
+    }
+    return frame;
+}
+
 CGRect JDSetFrameToFill(CGRect frame, UIView *superview, JDFrameFill fill, UIEdgeInsets insets)
 {
     if ((fill & JDFrameFillWidth) != 0) {
@@ -124,6 +166,11 @@ CGRect JDSetFrameToFill(CGRect frame, UIView *superview, JDFrameFill fill, UIEdg
                            superview.bounds.size.height - frame.origin.y - insets.bottom);
     }
     return frame;
+}
+
+NSString * JDSetFrameToString(CGRect frame)
+{
+    return [NSString stringWithFormat:@"%f %f %f %f", frame.origin.x, frame.origin.y, frame.size.width, frame.size.height];
 }
 
 
@@ -159,6 +206,11 @@ CGRect JDSetFrameToFill(CGRect frame, UIView *superview, JDFrameFill fill, UIEdg
     self.frame = JDSetFrameToWidthHeight(self.frame, width, height);
 }
 
+- (void)setFrameToSize:(CGSize)size
+{
+    self.frame = JDSetFrameToSize(self.frame, size);
+}
+
 - (void)setFrameToRightOfView:(UIView *)view
 {
     [self setFrameToRightOfView:view withMargin:0];
@@ -167,6 +219,16 @@ CGRect JDSetFrameToFill(CGRect frame, UIView *superview, JDFrameFill fill, UIEdg
 - (void)setFrameToRightOfView:(UIView *)view withMargin:(CGFloat)margin
 {
     self.frame = JDSetFrameToRightOfView(self.frame, view, margin);
+}
+
+- (void)setFrameToLeftOfView:(UIView *)view
+{
+    [self setFrameToLeftOfView:view withMargin:0];
+}
+
+- (void)setFrameToLeftOfView:(UIView *)view withMargin:(CGFloat)margin
+{
+    self.frame = JDSetFrameToLeftOfView(self.frame, view, margin);
 }
 
 - (void)setFrameToBottomOfView:(UIView *)view
@@ -198,6 +260,11 @@ CGRect JDSetFrameToFill(CGRect frame, UIView *superview, JDFrameFill fill, UIEdg
 {
     if (self.superview == nil) return;
     self.frame = JDSetFrameToAlignment(self.frame, self.superview, alignment, insets);
+}
+
+- (void)setFrameToAlignment:(JDFrameAlignment)alignment betweenView1:(UIView *)view1 andView2:(UIView *)view2
+{
+    self.frame = JDSetFrameToAlignmentBetweenViews(self.frame, view1, view2, alignment);
 }
 
 - (void)setFrameToFill:(JDFrameFill)fill
@@ -243,7 +310,39 @@ CGRect JDSetFrameToFill(CGRect frame, UIView *superview, JDFrameFill fill, UIEdg
 
 - (NSString *)frameToString
 {
-    return [NSString stringWithFormat:@"%f %f %f %f", self.frameLeft, self.frameTop, self.frameWidth, self.frameHeight];
+    return JDSetFrameToString(self.frame);
 }
 
 @end
+
+
+void JDSetEqualFramesFromTopToBottom(CGRect firstFrame, CGFloat margin, NSArray *views)
+{
+    UIView *previousView = nil;
+    for (UIView *view in views) {
+        if (previousView == nil) {
+            view.frame = firstFrame;
+        }
+        else {
+            [view setFrameToBottomOfView:previousView withMargin:margin];
+            [view setFrameToWidth:previousView.frameWidth height:previousView.frameHeight];
+        }
+        previousView = view;
+    }
+}
+
+void JDSetEqualFramesFromLeftToRight(CGRect firstFrame, CGFloat margin, NSArray *views)
+{
+    UIView *previousView = nil;
+    for (UIView *view in views) {
+        if (previousView == nil) {
+            view.frame = firstFrame;
+        }
+        else {
+            [view setFrameToRightOfView:previousView withMargin:margin];
+            [view setFrameToWidth:previousView.frameWidth height:previousView.frameHeight];
+        }
+        previousView = view;
+    }
+}
+
